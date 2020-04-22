@@ -44,9 +44,34 @@ ProcessPointClouds<PointT>::SeparateClouds(
   // TODO: Create two new point clouds, one cloud with obstacles and other with
   // segmented plane
 
+  // create containers
+  typename pcl::PointCloud<PointT>::Ptr plane_cloud(
+      new pcl::PointCloud<PointT>),
+      obs_cloud(new pcl::PointCloud<PointT>);
+
+  // copy the points that is part of the plane to plane_cloud, the original
+  // cloud is still untouched
+  for (int index : inliers->indices) {
+    plane_cloud->points.push_back(cloud->points[index]);
+  }
+
+  // another pcl magic, this class will filter out points
+  pcl::ExtractIndices<PointT> extractor;
+  extractor.setInputCloud(cloud);
+  extractor.setIndices(inliers);
+
+  // isNegative(true) means whatever is part of the inlier (which is plane_cloud
+  // in this case) will be thrown away isNegative(false) means whatever is part
+  // of the inlier is kept, and the rest are thrown away BUTTTTT the original
+  // cloud is actually untouched, unless you overwrite the container
+  extractor.setNegative(false);
+
+  // save that filtered cloud
+  extractor.filter(*obs_cloud);
+
   std::pair<typename pcl::PointCloud<PointT>::Ptr,
             typename pcl::PointCloud<PointT>::Ptr>
-      segResult(cloud, cloud);
+      segResult(obs_cloud, plane_cloud);
   return segResult;
 }
 
@@ -58,8 +83,43 @@ ProcessPointClouds<PointT>::SegmentPlane(
     float distanceThreshold) {
   // Time segmentation process
   auto startTime = std::chrono::steady_clock::now();
-  pcl::PointIndices::Ptr inliers;
   // TODO:: Fill in this function to find inliers for the cloud.
+
+  // container for index of plane points,
+  // essentially vector<int>
+  pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+
+  // container for math data on the plane
+  pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+
+  // the actual magical segmentation class from pcl
+  pcl::SACSegmentation<PointT> SACseg;
+
+  SACseg.setOptimizeCoefficients(true);  // optional, good to have
+  SACseg.setModelType(pcl::SACMODEL_PLANE);
+  SACseg.setMethodType(pcl::SAC_RANSAC);  // we are using the RANSAC algo
+
+  // params on how many iteration it will try, somewhere
+  // between 100 to 1000 is good
+  SACseg.setMaxIterations(maxIterations);
+
+  // the bigger this is, the more points it will
+  // cluster together as a plane, must be sufficiently
+  // large
+  SACseg.setDistanceThreshold(distanceThreshold);
+
+  // specify input cloud, should the original
+  // cloud containing everything
+  SACseg.setInputCloud(cloud);
+
+  // actual magic where it will detect planes
+  // and put the index of the plane into inliers
+  SACseg.segment(*inliers, *coefficients);
+
+  // if the inliers is empty, means no plane detected
+  if (inliers->indices.size() == 0) {
+    std::cout << "[pcl Segment Plane] no planes found\n";
+  }
 
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -67,9 +127,7 @@ ProcessPointClouds<PointT>::SegmentPlane(
   std::cout << "plane segmentation took " << elapsedTime.count()
             << " milliseconds" << std::endl;
 
-  std::pair<typename pcl::PointCloud<PointT>::Ptr,
-            typename pcl::PointCloud<PointT>::Ptr>
-      segResult = SeparateClouds(inliers, cloud);
+  auto segResult = SeparateClouds(inliers, cloud);
   return segResult;
 }
 
