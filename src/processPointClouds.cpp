@@ -64,7 +64,7 @@ ProcessPointClouds<PointT>::SeparateClouds(
   // in this case) will be thrown away isNegative(false) means whatever is part
   // of the inlier is kept, and the rest are thrown away BUTTTTT the original
   // cloud is actually untouched, unless you overwrite the container
-  extractor.setNegative(false);
+  extractor.setNegative(true);
 
   // save that filtered cloud
   extractor.filter(*obs_cloud);
@@ -139,10 +139,34 @@ ProcessPointClouds<PointT>::Clustering(
   // Time clustering process
   auto startTime = std::chrono::steady_clock::now();
 
+  // for output of clusters of pointcloud
   std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
-  // TODO:: Fill in the function to perform euclidean clustering to group
-  // detected obstacles
+  // data structure to do point search during clustering, for O(logn) performance
+  typename pcl::search::KdTree<PointT>::Ptr kdTree(new pcl::search::KdTree<PointT>);
+  kdTree->setInputCloud(cloud);
+
+  std::vector<pcl::PointIndices> cluster_indices;
+  pcl::EuclideanClusterExtraction<PointT> eucledean_cluster_extractor;
+  eucledean_cluster_extractor.setClusterTolerance(clusterTolerance);
+  eucledean_cluster_extractor.setMinClusterSize(minSize);
+  eucledean_cluster_extractor.setMaxClusterSize(maxSize);
+  eucledean_cluster_extractor.setSearchMethod(kdTree);
+  eucledean_cluster_extractor.setInputCloud(cloud);
+
+  // actual magic happening, save the indices of clusters
+  eucledean_cluster_extractor.extract(cluster_indices);
+
+  for (int i = 0; i < cluster_indices.size(); ++i) {
+    typename pcl::PointCloud<PointT>::Ptr cluster (new pcl::PointCloud<PointT>);
+    for (int j = 0; j < cluster_indices[i].indices.size(); ++j) {
+    cluster->points.push_back(cloud->points[cluster_indices[i].indices[j]]);
+    }
+    cluster->width = cluster->points.size();
+    cluster->height = 1;
+    cluster->is_dense = true;
+    clusters.push_back(cluster);
+  }
 
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
