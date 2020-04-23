@@ -143,14 +143,16 @@ void calcRansac3DDistwithMultithread(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
                                      float distanceTol,
                                      std::unordered_set<int> &best_inliers_set,
                                      std::mutex &mtx) {
-  while (best_inliers_set.size() < 3) {
+  std::unordered_set<int> inliers_set;
+  
+  while (inliers_set.size() < 3) {
     int rand_idx = rand() % cloud->points.size();
-    best_inliers_set.insert(rand_idx);
+    inliers_set.insert(rand_idx);
   }
 
   std::vector<pcl::PointXYZ> pts;
   std::unordered_set<int>::iterator it;
-  for (it = best_inliers_set.begin(); it != best_inliers_set.end(); ++it) {
+  for (it = inliers_set.begin(); it != inliers_set.end(); ++it) {
     pts.push_back(cloud->points[*it]);
   }
 
@@ -164,8 +166,6 @@ void calcRansac3DDistwithMultithread(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
   double B = v1v2(1);
   double C = v1v2(2);
   double D = -1 * (A * pts[0].x + B * pts[0].y + C * pts[0].z);
-
-  std::unordered_set<int> inliers_set;
 
   for (int idx = 0; idx < cloud->points.size(); ++idx) {
     pcl::PointXYZ p = cloud->points[idx];
@@ -208,19 +208,19 @@ std::unordered_set<int> Ransac3D(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
   std::cout << "calcRansac3DDistwithMultithread took " << elapsedTime.count()
             << " microseconds" << std::endl;
 
-  best_inliers_set.clear();
+  // best_inliers_set.clear();
 
-  startTime = std::chrono::steady_clock::now();
+  // startTime = std::chrono::steady_clock::now();
 
-  for (int it = 0; it < maxIterations; ++it) {
-    calcRansac3DDistwithMultithread(cloud, distanceTol, best_inliers_set, mtx);
-  }
+  // for (int it = 0; it < maxIterations; ++it) {
+  //   calcRansac3DDistwithMultithread(cloud, distanceTol, best_inliers_set, mtx);
+  // }
 
-  endTime = std::chrono::steady_clock::now();
-  elapsedTime = std::chrono::duration_cast<std::chrono::microseconds>(
-      endTime - startTime);
-  std::cout << "calcRansac3DDistNoMultithread took " << elapsedTime.count()
-            << " microseconds" << std::endl;
+  // endTime = std::chrono::steady_clock::now();
+  // elapsedTime = std::chrono::duration_cast<std::chrono::microseconds>(
+  //     endTime - startTime);
+  // std::cout << "calcRansac3DDistNoMultithread took " << elapsedTime.count()
+  //           << " microseconds" << std::endl;
 
   return best_inliers_set;
 }
@@ -234,7 +234,7 @@ int main() {
 
   // TODO: Change the max iteration and distance tolerance arguments for
   // Ransac function
-  std::unordered_set<int> inliers = Ransac3D(cloud, 29900, 0.5);
+  std::unordered_set<int> inliers = Ransac3D(cloud, 1000, 0.3);
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloudInliers(
       new pcl::PointCloud<pcl::PointXYZ>());
