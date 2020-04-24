@@ -111,9 +111,18 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer) {
       pointProcessorI->loadPcd("../src/sensors/data/pcd/data_1/0000000000.pcd");
   pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud =
       pointProcessorI->FilterCloud(inputCloud, 0.2,
-                                   Eigen::Vector4f(0.5, 0.5, 0.5, 1.0),
-                                   Eigen::Vector4f(50.0, 50.0, 50.0, 1.0));
+                                   Eigen::Vector4f(-20, -9, -2, 1.0),
+                                   Eigen::Vector4f(20, 9, 4, 1.0));
   renderPointCloud(viewer, filtered_cloud, "inputCloud");
+
+  Box box;
+  box.x_min = -1.5;
+  box.y_min = -2;
+  box.z_min = -2;
+  box.x_max = 1.5;
+  box.y_max = 2;
+  box.z_max = 0;
+  // renderBox(viewer, box, 0);
 }
 
 int main(int argc, char** argv) {

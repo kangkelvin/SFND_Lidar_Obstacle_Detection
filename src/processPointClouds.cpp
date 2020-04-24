@@ -33,6 +33,20 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(
   voxel_grid.setLeafSize(filterRes, filterRes, filterRes);
   voxel_grid.filter(*filtered_cloud);
 
+  pcl::CropBox<PointT> crop_box;
+  // filter far distance out
+  crop_box.setInputCloud(filtered_cloud);
+  crop_box.setMin(minPoint);
+  crop_box.setMax(maxPoint);
+  crop_box.filter(*filtered_cloud);
+
+  // filter ego points
+  crop_box.setInputCloud(filtered_cloud);
+  crop_box.setNegative(true);
+  crop_box.setMin(Eigen::Vector4f(-1.5, -2, -2, 1));
+  crop_box.setMax(Eigen::Vector4f(3.0, 2, 0, 1));
+  crop_box.filter(*filtered_cloud);
+
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
       endTime - startTime);
