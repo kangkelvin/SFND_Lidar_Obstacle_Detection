@@ -305,14 +305,11 @@ ProcessPointClouds<PointT>::SegmentPlaneWithRansac3D(
     typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations,
     float distanceTol) {
   srand(time(NULL));
-  auto startTime = std::chrono::steady_clock::now();
 
-  // TODO: Fill in this function
   std::unordered_set<int> best_inliers_set;
   std::mutex mtx;
   std::vector<std::thread> threads;
 
-  // For max iterations
   for (int it = 0; it < maxIterations; ++it) {
     threads.emplace_back(std::thread(
         &ProcessPointClouds<PointT>::calcRansac3DDistwithMultithread, this,
@@ -322,21 +319,61 @@ ProcessPointClouds<PointT>::SegmentPlaneWithRansac3D(
   std::for_each(threads.begin(), threads.end(),
                 [](std::thread &t) { t.join(); });
 
-  auto endTime = std::chrono::steady_clock::now();
-  auto elapsedTime = std::chrono::duration_cast<std::chrono::microseconds>(
-      endTime - startTime);
-  std::cout << "calcRansac3DDistwithMultithread took " << elapsedTime.count()
-            << " microseconds" << std::endl;
-
+  // convert unordered_set to PointIndices from pcl
   pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-  std::cout << "fail?\n";
-  // inliers->indices.reserve(best_inliers_set.size());
   for (auto it = best_inliers_set.begin(); it != best_inliers_set.end(); it++) {
     inliers->indices.push_back(*it);
   }
-  std::cout << "fail?\n";
-  auto segResult = SeparateClouds(inliers, cloud);
-  std::cout << "fail?\n";
 
+  auto segResult = SeparateClouds(inliers, cloud);
   return segResult;
+}
+
+template <typename PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr>
+ProcessPointClouds<PointT>::ClusteringWithKdTree(
+    typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
+    int minSize, int maxSize) {
+  // Time clustering process
+  auto startTime = std::chrono::steady_clock::now();
+
+  // for output of clusters of pointcloud
+  std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
+
+  // data structure to do point search during clustering, for O(logn)
+  // performance
+  typename pcl::search::KdTree<PointT>::Ptr kdTree(
+      new pcl::search::KdTree<PointT>);
+  kdTree->setInputCloud(cloud);
+
+  std::vector<pcl::PointIndices> cluster_indices;
+  pcl::EuclideanClusterExtraction<PointT> eucledean_cluster_extractor;
+  eucledean_cluster_extractor.setClusterTolerance(clusterTolerance);
+  eucledean_cluster_extractor.setMinClusterSize(minSize);
+  eucledean_cluster_extractor.setMaxClusterSize(maxSize);
+  eucledean_cluster_extractor.setSearchMethod(kdTree);
+  eucledean_cluster_extractor.setInputCloud(cloud);
+
+  // actual magic happening, save the indices of clusters
+  eucledean_cluster_extractor.extract(cluster_indices);
+
+  for (int i = 0; i < cluster_indices.size(); ++i) {
+    typename pcl::PointCloud<PointT>::Ptr cluster(new pcl::PointCloud<PointT>);
+    for (int j = 0; j < cluster_indices[i].indices.size(); ++j) {
+      cluster->points.push_back(cloud->points[cluster_indices[i].indices[j]]);
+    }
+    cluster->width = cluster->points.size();
+    cluster->height = 1;
+    cluster->is_dense = true;
+    clusters.push_back(cluster);
+  }
+
+  auto endTime = std::chrono::steady_clock::now();
+  auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+      endTime - startTime);
+  std::cout << "clustering took " << elapsedTime.count()
+            << " milliseconds and found " << clusters.size() << " clusters"
+            << std::endl;
+
+  return clusters;
 }
