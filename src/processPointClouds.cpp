@@ -99,7 +99,7 @@ ProcessPointClouds<PointT>::SeparateClouds(
 template <typename PointT>
 std::pair<typename pcl::PointCloud<PointT>::Ptr,
           typename pcl::PointCloud<PointT>::Ptr>
-ProcessPointClouds<PointT>::SegmentPlane(
+ProcessPointClouds<PointT>::SegmentPlaneWithPcl(
     typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations,
     float distanceThreshold) {
   // Time segmentation process
@@ -154,7 +154,7 @@ ProcessPointClouds<PointT>::SegmentPlane(
 
 template <typename PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr>
-ProcessPointClouds<PointT>::Clustering(
+ProcessPointClouds<PointT>::ClusteringWithPcl(
     typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
     int minSize, int maxSize) {
   // Time clustering process
@@ -253,4 +253,90 @@ std::vector<boost::filesystem::path> ProcessPointClouds<PointT>::streamPcd(
   sort(paths.begin(), paths.end());
 
   return paths;
+}
+
+template <typename PointT>
+void ProcessPointClouds<PointT>::calcRansac3DDistwithMultithread(
+    typename pcl::PointCloud<PointT>::Ptr cloud, float distanceTol,
+    std::unordered_set<int> &best_inliers_set, std::mutex &mtx) {
+  std::unordered_set<int> inliers_set;
+
+  while (inliers_set.size() < 3) {
+    int rand_idx = rand() % cloud->points.size();
+    inliers_set.insert(rand_idx);
+  }
+
+  std::vector<PointT> pts;
+  std::unordered_set<int>::iterator it;
+  for (it = inliers_set.begin(); it != inliers_set.end(); ++it) {
+    pts.push_back(cloud->points[*it]);
+  }
+
+  Eigen::Vector3d v1(pts[1].x - pts[0].x, pts[1].y - pts[0].y,
+                     pts[1].z - pts[0].z);
+  Eigen::Vector3d v2(pts[2].x - pts[0].x, pts[2].y - pts[0].y,
+                     pts[2].z - pts[0].z);
+
+  Eigen::Vector3d v1v2 = v1.cross(v2);
+  double A = v1v2(0);
+  double B = v1v2(1);
+  double C = v1v2(2);
+  double D = -1 * (A * pts[0].x + B * pts[0].y + C * pts[0].z);
+
+  for (int idx = 0; idx < cloud->points.size(); ++idx) {
+    PointT p = cloud->points[idx];
+    double distance = std::fabs(A * p.x + B * p.y + C * p.z + D) /
+                      std::sqrt(A * A + B * B + C * C);
+    if (distance < distanceTol) {
+      inliers_set.insert(idx);
+    }
+  }
+  const std::lock_guard<std::mutex> lck(mtx);
+  if (inliers_set.size() > best_inliers_set.size()) {
+    best_inliers_set.clear();
+    best_inliers_set = std::move(inliers_set);
+  }
+}
+
+template <typename PointT>
+std::pair<typename pcl::PointCloud<PointT>::Ptr,
+          typename pcl::PointCloud<PointT>::Ptr>
+ProcessPointClouds<PointT>::SegmentPlaneWithRansac3D(
+    typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations,
+    float distanceTol) {
+  srand(time(NULL));
+  auto startTime = std::chrono::steady_clock::now();
+
+  // TODO: Fill in this function
+  std::unordered_set<int> best_inliers_set;
+  std::mutex mtx;
+  std::vector<std::thread> threads;
+
+  // For max iterations
+  for (int it = 0; it < maxIterations; ++it) {
+    threads.emplace_back(std::thread(
+        &ProcessPointClouds<PointT>::calcRansac3DDistwithMultithread, this,
+        cloud, distanceTol, std::ref(best_inliers_set), std::ref(mtx)));
+  }
+
+  std::for_each(threads.begin(), threads.end(),
+                [](std::thread &t) { t.join(); });
+
+  auto endTime = std::chrono::steady_clock::now();
+  auto elapsedTime = std::chrono::duration_cast<std::chrono::microseconds>(
+      endTime - startTime);
+  std::cout << "calcRansac3DDistwithMultithread took " << elapsedTime.count()
+            << " microseconds" << std::endl;
+
+  pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+  std::cout << "fail?\n";
+  // inliers->indices.reserve(best_inliers_set.size());
+  for (auto it = best_inliers_set.begin(); it != best_inliers_set.end(); it++) {
+    inliers->indices.push_back(*it);
+  }
+  std::cout << "fail?\n";
+  auto segResult = SeparateClouds(inliers, cloud);
+  std::cout << "fail?\n";
+
+  return segResult;
 }

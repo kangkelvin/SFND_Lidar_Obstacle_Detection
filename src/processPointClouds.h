@@ -12,10 +12,15 @@
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <Eigen/Dense>
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <iostream>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <unordered_set>
 #include <vector>
 #include "render/box.h"
 
@@ -40,12 +45,21 @@ class ProcessPointClouds {
 
   std::pair<typename pcl::PointCloud<PointT>::Ptr,
             typename pcl::PointCloud<PointT>::Ptr>
-  SegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations,
-               float distanceThreshold);
+  SegmentPlaneWithPcl(typename pcl::PointCloud<PointT>::Ptr cloud,
+                      int maxIterations, float distanceThreshold);
 
-  std::vector<typename pcl::PointCloud<PointT>::Ptr> Clustering(
+  std::vector<typename pcl::PointCloud<PointT>::Ptr> ClusteringWithPcl(
       typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
       int minSize, int maxSize);
+
+  void calcRansac3DDistwithMultithread(
+      typename pcl::PointCloud<PointT>::Ptr cloud, float distanceTol,
+      std::unordered_set<int> &best_inliers_set, std::mutex &mtx);
+
+  std::pair<typename pcl::PointCloud<PointT>::Ptr,
+            typename pcl::PointCloud<PointT>::Ptr>
+  SegmentPlaneWithRansac3D(typename pcl::PointCloud<PointT>::Ptr cloud,
+                           int maxIterations, float distanceTol);
 
   Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
 
