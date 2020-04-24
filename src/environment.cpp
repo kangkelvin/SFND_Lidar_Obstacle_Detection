@@ -53,8 +53,7 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer) {
   auto cloud_pair = pcl_processor->SegmentPlane(scanned_cloud, 200, 0.2);
   // renderPointCloud(viewer, cloud_pair.first, "obs",
   //                  Color(1.0, 0.0, 0.0));
-  renderPointCloud(viewer, cloud_pair.second, "plane",
-                   Color(0.0, 1.0, 0.0));
+  renderPointCloud(viewer, cloud_pair.second, "plane", Color(0.0, 1.0, 0.0));
   auto segmented_obs_clouds =
       pcl_processor->Clustering(cloud_pair.first, 1.0, 3, 30);
 
@@ -67,6 +66,8 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer) {
     pcl_processor->numPoints(cluster);
     renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId),
                      colors[clusterId % colors.size()]);
+    Box box = pcl_processor->BoundingBox(cluster);
+    renderBox(viewer, box, clusterId);
     ++clusterId;
   }
 }
