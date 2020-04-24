@@ -116,7 +116,7 @@ int main() {
 
   KdTree* tree = new KdTree;
 
-  for (int i = 0; i < points.size(); i++) tree->insert(points[i], i);
+  for (int i = 0; i < points.size(); i++) tree->insert(points[i], i, 2);
 
   int it = 0;
   render2DTree(tree->root, viewer, window, it);
