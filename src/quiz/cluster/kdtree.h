@@ -20,13 +20,15 @@ struct Node {
   Node(std::vector<float> arr, int setId, int setDim)
       : point(arr), id(setId), left(NULL), right(NULL), numDimension(setDim) {}
 
+  // insert by checking if new point is larger/smaller than current point
   void insert(std::vector<float> new_point, int new_id, int depth) {
-    if (new_point[depth % numDimension] < point[depth % numDimension])  // even depth, compare x
+    if (new_point[depth % numDimension] < point[depth % numDimension])
       insertIfNull(left, new_point, new_id, depth + 1);
     else
       insertIfNull(right, new_point, new_id, depth + 1);
   }
 
+  // safeguard from segmentation error
   void insertIfNull(std::shared_ptr<Node>& node, std::vector<float> new_point,
                     int new_id, int depth) {
     if (node == NULL) {
@@ -36,30 +38,38 @@ struct Node {
     }
   }
 
+  // find nearby points and store it in ids
   void search(std::vector<int>& ids, std::vector<float> target,
               float distanceTol, int depth) {
+    // find which dimension to compare points with. e.g. x, y or z
     int dim_to_check = depth % numDimension;
 
+    // check if target is within distance tolerance on all dimensions
     bool within_bounding_box = true;
     for (int i = 0; i < numDimension; ++i) {
       within_bounding_box *= point[i] <= target[i] + distanceTol;
       within_bounding_box *= point[i] >= target[i] - distanceTol;
     }
 
+    // if withinbox, do one more euclidean dist check
     if (within_bounding_box) {
       if (calcEucledian(target, point) <= distanceTol) {
         ids.push_back(id);
       }
     }
 
+    // if current node is on right side of target, check the left child
     if (target[dim_to_check] - distanceTol < point[dim_to_check]) {
       searchNullCheck(left, ids, target, distanceTol, depth + 1);
     }
+
+    // if current node is on left side of target, check the right child
     if (target[dim_to_check] + distanceTol > point[dim_to_check]) {
       searchNullCheck(right, ids, target, distanceTol, depth + 1);
     }
   }
 
+  // safeguard from segmentation error
   void searchNullCheck(std::shared_ptr<Node>& node, std::vector<int>& ids,
                        std::vector<float> target, float distanceTol,
                        int depth) {
@@ -105,6 +115,7 @@ struct KdTree {
 
   KdTree() : root(NULL) {}
 
+  // insert a new Node into tree
   void insert(std::vector<float> point, int id, int setDim) {
     if (root == NULL) {
       root = std::make_shared<Node>(point, id, setDim);
@@ -121,6 +132,7 @@ struct KdTree {
     return ids;
   }
 
+  // find other points within a certain node and distance tolerance
   void proximity(int id, const std::vector<std::vector<float>>& points,
                  std::vector<int>& cluster,
                  std::unordered_set<int>& processed_ids, float distanceTol) {

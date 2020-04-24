@@ -262,28 +262,33 @@ void ProcessPointClouds<PointT>::calcRansac3DDistwithMultithread(
     std::unordered_set<int> &best_inliers_set, std::mutex &mtx) {
   std::unordered_set<int> inliers_set;
 
+  // randomly select 3 unique points
   while (inliers_set.size() < 3) {
     int rand_idx = rand() % cloud->points.size();
     inliers_set.insert(rand_idx);
   }
 
+  // push those 3 random points to vector of PointT
   std::vector<PointT> pts;
   std::unordered_set<int>::iterator it;
   for (it = inliers_set.begin(); it != inliers_set.end(); ++it) {
     pts.push_back(cloud->points[*it]);
   }
 
+  // create vector between p1 p0 and p2 p0
   Eigen::Vector3d v1(pts[1].x - pts[0].x, pts[1].y - pts[0].y,
                      pts[1].z - pts[0].z);
   Eigen::Vector3d v2(pts[2].x - pts[0].x, pts[2].y - pts[0].y,
                      pts[2].z - pts[0].z);
 
+  // calculate plane equation coefficients
   Eigen::Vector3d v1v2 = v1.cross(v2);
   double A = v1v2(0);
   double B = v1v2(1);
   double C = v1v2(2);
   double D = -1 * (A * pts[0].x + B * pts[0].y + C * pts[0].z);
 
+  // check how many points is near this plane
   for (int idx = 0; idx < cloud->points.size(); ++idx) {
     PointT p = cloud->points[idx];
     double distance = std::fabs(A * p.x + B * p.y + C * p.z + D) /
@@ -292,6 +297,8 @@ void ProcessPointClouds<PointT>::calcRansac3DDistwithMultithread(
       inliers_set.insert(idx);
     }
   }
+
+  // the plane with most number of points are returned
   const std::lock_guard<std::mutex> lck(mtx);
   if (inliers_set.size() > best_inliers_set.size()) {
     best_inliers_set.clear();
@@ -311,6 +318,7 @@ ProcessPointClouds<PointT>::SegmentPlaneWithRansac3D(
   std::mutex mtx;
   std::vector<std::thread> threads;
 
+  // calculate the set of inliers with the most points
   for (int it = 0; it < maxIterations; ++it) {
     threads.emplace_back(std::thread(
         &ProcessPointClouds<PointT>::calcRansac3DDistwithMultithread, this,
@@ -326,6 +334,7 @@ ProcessPointClouds<PointT>::SegmentPlaneWithRansac3D(
     inliers->indices.push_back(*it);
   }
 
+  // seperate the road plane from the rest
   auto segResult = SeparateClouds(inliers, cloud);
   return segResult;
 }
@@ -335,7 +344,6 @@ std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr>
 ProcessPointClouds<PointT>::ClusteringWithKdTree(
     typename pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, float clusterTolerance,
     int minSize, int maxSize) {
-  // Time clustering process
   auto startTime = std::chrono::steady_clock::now();
 
   // for output of clusters of pointcloud
@@ -343,45 +351,47 @@ ProcessPointClouds<PointT>::ClusteringWithKdTree(
 
   KdTree *tree = new KdTree;
 
+  // convert point cloud data to vector<float> for kdTree
   std::vector<std::vector<float>> points;
   for (auto point : cloud->points) {
     std::vector<float> vec_point = {point.x, point.y, point.z};
     points.emplace_back(std::move(vec_point));
   }
 
+  // insert points to the KdTree
   for (int i = 0; i < points.size(); i++)
-    tree->insert(points[i], i, 3);
+    tree->insert(points[i], i, points[i].size());
 
+  // to keep track of visited points
   std::unordered_set<int> processed_ids;
-  std::vector<std::vector<int>> vec_clusters;
 
-  std::cout << "################################1\n";
+  // result of clustering
+  std::vector<std::vector<int>> clusters_indices;
 
+  // cluster the points and save in clusters_indices
   for (int id = 0; id < points.size(); id++) {
     if (processed_ids.find(id) == processed_ids.end()) {
-      std::cout << "make new cluster for id: " << id << std::endl;
-      std::vector<int> cluster;
-      tree->proximity(id, points, cluster, processed_ids, clusterTolerance);
-      if (cluster.size() > minSize && cluster.size() < maxSize) {
-        vec_clusters.push_back(cluster);
-        for (int index : cluster) std::cout << index << ",";
-        std::cout << std::endl;
+      std::vector<int> cluster_indices;
+      tree->proximity(id, points, cluster_indices, processed_ids,
+                      clusterTolerance);
+      if (cluster_indices.size() > minSize &&
+          cluster_indices.size() < maxSize) {
+        clusters_indices.push_back(cluster_indices);
       }
     }
   }
 
-  for (int i = 0; i < vec_clusters.size(); ++i) {
+  // create point cloud from the clusters_indices
+  for (int i = 0; i < clusters_indices.size(); ++i) {
     typename pcl::PointCloud<PointT>::Ptr cluster(new pcl::PointCloud<PointT>);
-    for (int j = 0; j < vec_clusters[i].size(); ++j) {
-      cluster->points.push_back(cloud->points[vec_clusters[i][j]]);
+    for (int j = 0; j < clusters_indices[i].size(); ++j) {
+      cluster->points.push_back(cloud->points[clusters_indices[i][j]]);
     }
     cluster->width = cluster->points.size();
     cluster->height = 1;
     cluster->is_dense = true;
     clusters.push_back(cluster);
   }
-
-  std::cout << "################################4\n";
 
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(

@@ -106,15 +106,20 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer,
   // ----------------------------------------------------
   // -----Open 3D viewer and display City Block     -----
   // ----------------------------------------------------
+
+  // downsampling of pcd with voxel grid and crop box
   pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud =
       pointProcessorI->FilterCloud(inputCloud, 0.3,
                                    Eigen::Vector4f(-20, -6.5, -2, 1.0),
                                    Eigen::Vector4f(20, 7.5, 4, 1.0));
+
   renderPointCloud(viewer, filtered_cloud, "inputCloud");
 
+  // segment out the road plane
   auto segmented_cloud =
       pointProcessorI->SegmentPlaneWithRansac3D(filtered_cloud, 150, 0.3);
 
+  // cluster the obstacles cloud
   auto obstacles_cloud =
       pointProcessorI->ClusteringWithKdTree(segmented_cloud.first, 0.5, 15, 250);
 
@@ -123,6 +128,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer,
 
   renderPointCloud(viewer, segmented_cloud.second, "road", Color(1, 1, 1));
 
+  // draw bounding box around detected obstacles
   for (auto cluster : obstacles_cloud) {
     std::cout << "cluster size ";
     pointProcessorI->numPoints(cluster);
