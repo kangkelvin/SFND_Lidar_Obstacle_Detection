@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <string>
+#include <unordered_set>
 #include "../../render/box.h"
 #include "../../render/render.h"
 #include "kdtree.h"
@@ -42,8 +43,9 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr CreateData(
   return cloud;
 }
 
-void render2DTree(std::shared_ptr<Node> node, pcl::visualization::PCLVisualizer::Ptr& viewer,
-                  Box window, int& iteration, uint depth = 0) {
+void render2DTree(std::shared_ptr<Node> node,
+                  pcl::visualization::PCLVisualizer::Ptr& viewer, Box window,
+                  int& iteration, uint depth = 0) {
   if (node != NULL) {
     Box upperWindow = window;
     Box lowerWindow = window;
@@ -74,9 +76,21 @@ std::vector<std::vector<int>> euclideanCluster(
     const std::vector<std::vector<float>>& points, KdTree* tree,
     float distanceTol) {
   // TODO: Fill out this function to return list of indices for each cluster
-
+  std::unordered_set<int> processed_ids;
   std::vector<std::vector<int>> clusters;
 
+  for (int id = 0; id < points.size(); id++) {
+    if (processed_ids.find(id) == processed_ids.end()) {
+      std::cout << "make new cluster for id: " << id << std::endl;
+      std::vector<int> cluster;
+      tree->proximity(id, points, cluster, processed_ids, distanceTol);
+      clusters.push_back(cluster);
+      for (int index : cluster) std::cout << index << ",";
+      std::cout << std::endl;
+    } else {
+      std::cout << "skip for id: " << id << std::endl;
+    }
+  }
   return clusters;
 }
 
@@ -94,7 +108,7 @@ int main() {
   // Create data
   std::vector<std::vector<float>> points = {
       {-6.2, 7},   {-6.3, 8.4},  {-5.2, 7.1}, {-5.7, 6.3},
-      {7.2, 6.1},  {8.0, 5.3},   {7.2, 7.1},  {0.2, -7.1},
+      {7.2, 6.1},  {8.0, 5.3},   {7.21, 7.11},  {0.2, -7.1},
       {1.7, -6.9}, {-1.2, -7.2}, {2.2, -8.9}};
   // std::vector<std::vector<float>> points = { {-6.2,7}, {-6.3,8.4},
   // {-5.2,7.1}, {-5.7,6.3} };
@@ -107,10 +121,10 @@ int main() {
   int it = 0;
   render2DTree(tree->root, viewer, window, it);
 
-  std::cout << "Test Search" << std::endl;
-  std::vector<int> nearby = tree->search({-6, 7}, 3.0);
-  for (int index : nearby) std::cout << index << ",";
-  std::cout << std::endl;
+  // std::cout << "Test Search" << std::endl;
+  // std::vector<int> nearby = tree->search({-6, 7}, 3.0);
+  // for (int index : nearby) std::cout << index << ",";
+  // std::cout << std::endl;
 
   // Time segmentation process
   auto startTime = std::chrono::steady_clock::now();
@@ -138,7 +152,7 @@ int main() {
     ++clusterId;
   }
   if (clusters.size() == 0) renderPointCloud(viewer, cloud, "data");
-
+  tree->root->traverseTree();
   while (!viewer->wasStopped()) {
     viewer->spinOnce();
   }
