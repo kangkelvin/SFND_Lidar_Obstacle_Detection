@@ -61,11 +61,11 @@ class ProcessPointClouds {
   SegmentPlaneWithRansac3D(typename pcl::PointCloud<PointT>::Ptr cloud,
                            int maxIterations, float distanceTol);
 
-  std::vector<typename pcl::PointCloud<PointT>::Ptr> ClusteringWithKdTree(
-      typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
-      int minSize, int maxSize)
+  std::vector<typename pcl::PointCloud<pcl::PointXYZI>::Ptr>
+  ClusteringWithKdTree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
+                       float clusterTolerance, int minSize, int maxSize);
 
-      Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
+  Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
 
   void savePcd(typename pcl::PointCloud<PointT>::Ptr cloud, std::string file);
 

@@ -107,27 +107,27 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer,
   // -----Open 3D viewer and display City Block     -----
   // ----------------------------------------------------
   pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud =
-      pointProcessorI->FilterCloud(inputCloud, 0.2,
-                                   Eigen::Vector4f(-20, -9, -2, 1.0),
-                                   Eigen::Vector4f(20, 9, 4, 1.0));
+      pointProcessorI->FilterCloud(inputCloud, 0.3,
+                                   Eigen::Vector4f(-20, -6.5, -2, 1.0),
+                                   Eigen::Vector4f(20, 7.5, 4, 1.0));
   renderPointCloud(viewer, filtered_cloud, "inputCloud");
 
   auto segmented_cloud =
-      pointProcessorI->SegmentPlaneWithRansac3D(filtered_cloud, 100, 0.4);
+      pointProcessorI->SegmentPlaneWithRansac3D(filtered_cloud, 150, 0.3);
 
   auto obstacles_cloud =
-      pointProcessorI->ClusteringWithPcl(segmented_cloud.first, 0.4, 10, 1000);
+      pointProcessorI->ClusteringWithKdTree(segmented_cloud.first, 0.5, 15, 250);
 
   std::vector<Color> colors = {Color(1, 0, 0), Color(0, 1, 1), Color(0, 0, 1)};
   int clusterId = 0;
 
-  renderPointCloud(viewer, segmented_cloud.second, "roads", Color(1, 1, 1));
+  renderPointCloud(viewer, segmented_cloud.second, "road", Color(1, 1, 1));
 
   for (auto cluster : obstacles_cloud) {
     std::cout << "cluster size ";
     pointProcessorI->numPoints(cluster);
     renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId),
-                     Color(0, 0, 1));
+                     colors[clusterId % colors.size()]);
     Box box = pointProcessorI->BoundingBox(cluster);
     renderBox(viewer, box, clusterId);
     ++clusterId;

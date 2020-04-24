@@ -1,6 +1,7 @@
 // PCL lib Functions for processing point clouds
 
 #include "processPointClouds.h"
+#include "quiz/cluster/kdtree.h"
 
 // constructor:
 template <typename PointT>
@@ -330,9 +331,9 @@ ProcessPointClouds<PointT>::SegmentPlaneWithRansac3D(
 }
 
 template <typename PointT>
-std::vector<typename pcl::PointCloud<PointT>::Ptr>
+std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr>
 ProcessPointClouds<PointT>::ClusteringWithKdTree(
-    typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
+    typename pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, float clusterTolerance,
     int minSize, int maxSize) {
   // Time clustering process
   auto startTime = std::chrono::steady_clock::now();
@@ -340,33 +341,47 @@ ProcessPointClouds<PointT>::ClusteringWithKdTree(
   // for output of clusters of pointcloud
   std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
-  // data structure to do point search during clustering, for O(logn)
-  // performance
-  typename pcl::search::KdTree<PointT>::Ptr kdTree(
-      new pcl::search::KdTree<PointT>);
-  kdTree->setInputCloud(cloud);
+  KdTree *tree = new KdTree;
 
-  std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<PointT> eucledean_cluster_extractor;
-  eucledean_cluster_extractor.setClusterTolerance(clusterTolerance);
-  eucledean_cluster_extractor.setMinClusterSize(minSize);
-  eucledean_cluster_extractor.setMaxClusterSize(maxSize);
-  eucledean_cluster_extractor.setSearchMethod(kdTree);
-  eucledean_cluster_extractor.setInputCloud(cloud);
+  std::vector<std::vector<float>> points;
+  for (auto point : cloud->points) {
+    std::vector<float> vec_point = {point.x, point.y, point.z};
+    points.emplace_back(std::move(vec_point));
+  }
 
-  // actual magic happening, save the indices of clusters
-  eucledean_cluster_extractor.extract(cluster_indices);
+  for (int i = 0; i < points.size(); i++)
+    tree->insert(points[i], i, 3);
 
-  for (int i = 0; i < cluster_indices.size(); ++i) {
+  std::unordered_set<int> processed_ids;
+  std::vector<std::vector<int>> vec_clusters;
+
+  std::cout << "################################1\n";
+
+  for (int id = 0; id < points.size(); id++) {
+    if (processed_ids.find(id) == processed_ids.end()) {
+      std::cout << "make new cluster for id: " << id << std::endl;
+      std::vector<int> cluster;
+      tree->proximity(id, points, cluster, processed_ids, clusterTolerance);
+      if (cluster.size() > minSize && cluster.size() < maxSize) {
+        vec_clusters.push_back(cluster);
+        for (int index : cluster) std::cout << index << ",";
+        std::cout << std::endl;
+      }
+    }
+  }
+
+  for (int i = 0; i < vec_clusters.size(); ++i) {
     typename pcl::PointCloud<PointT>::Ptr cluster(new pcl::PointCloud<PointT>);
-    for (int j = 0; j < cluster_indices[i].indices.size(); ++j) {
-      cluster->points.push_back(cloud->points[cluster_indices[i].indices[j]]);
+    for (int j = 0; j < vec_clusters[i].size(); ++j) {
+      cluster->points.push_back(cloud->points[vec_clusters[i][j]]);
     }
     cluster->width = cluster->points.size();
     cluster->height = 1;
     cluster->is_dense = true;
     clusters.push_back(cluster);
   }
+
+  std::cout << "################################4\n";
 
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
