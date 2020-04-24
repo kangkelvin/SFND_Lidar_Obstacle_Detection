@@ -19,7 +19,7 @@ pcl::visualization::PCLVisualizer::Ptr initScene(Box window, int zoom) {
   viewer->addCoordinateSystem(1.0);
 
   viewer->addCube(window.x_min, window.x_max, window.y_min, window.y_max, 0, 0,
-                  1, 1, 1, "window");
+                  0, 0, 0, "window");
   return viewer;
 }
 
@@ -42,7 +42,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr CreateData(
   return cloud;
 }
 
-void render2DTree(Node* node, pcl::visualization::PCLVisualizer::Ptr& viewer,
+void render2DTree(std::shared_ptr<Node> node, pcl::visualization::PCLVisualizer::Ptr& viewer,
                   Box window, int& iteration, uint depth = 0) {
   if (node != NULL) {
     Box upperWindow = window;
