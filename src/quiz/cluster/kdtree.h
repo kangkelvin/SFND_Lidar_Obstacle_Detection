@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <memory>
+#include <unordered_set>
 #include "../../render/render.h"
 
 // Structure to represent node of kd tree
