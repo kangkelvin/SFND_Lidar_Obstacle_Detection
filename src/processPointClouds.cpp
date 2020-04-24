@@ -20,11 +20,18 @@ template <typename PointT>
 typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(
     typename pcl::PointCloud<PointT>::Ptr cloud, float filterRes,
     Eigen::Vector4f minPoint, Eigen::Vector4f maxPoint) {
+  typename pcl::PointCloud<PointT>::Ptr filtered_cloud(
+      new pcl::PointCloud<PointT>);
+
   // Time segmentation process
   auto startTime = std::chrono::steady_clock::now();
 
   // TODO:: Fill in the function to do voxel grid point reduction and region
   // based filtering
+  pcl::VoxelGrid<PointT> voxel_grid;
+  voxel_grid.setInputCloud(cloud);
+  voxel_grid.setLeafSize(filterRes, filterRes, filterRes);
+  voxel_grid.filter(*filtered_cloud);
 
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -32,7 +39,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(
   std::cout << "filtering took " << elapsedTime.count() << " milliseconds"
             << std::endl;
 
-  return cloud;
+  return filtered_cloud;
 }
 
 template <typename PointT>
@@ -142,8 +149,10 @@ ProcessPointClouds<PointT>::Clustering(
   // for output of clusters of pointcloud
   std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
-  // data structure to do point search during clustering, for O(logn) performance
-  typename pcl::search::KdTree<PointT>::Ptr kdTree(new pcl::search::KdTree<PointT>);
+  // data structure to do point search during clustering, for O(logn)
+  // performance
+  typename pcl::search::KdTree<PointT>::Ptr kdTree(
+      new pcl::search::KdTree<PointT>);
   kdTree->setInputCloud(cloud);
 
   std::vector<pcl::PointIndices> cluster_indices;
@@ -158,9 +167,9 @@ ProcessPointClouds<PointT>::Clustering(
   eucledean_cluster_extractor.extract(cluster_indices);
 
   for (int i = 0; i < cluster_indices.size(); ++i) {
-    typename pcl::PointCloud<PointT>::Ptr cluster (new pcl::PointCloud<PointT>);
+    typename pcl::PointCloud<PointT>::Ptr cluster(new pcl::PointCloud<PointT>);
     for (int j = 0; j < cluster_indices[i].indices.size(); ++j) {
-    cluster->points.push_back(cloud->points[cluster_indices[i].indices[j]]);
+      cluster->points.push_back(cloud->points[cluster_indices[i].indices[j]]);
     }
     cluster->width = cluster->points.size();
     cluster->height = 1;
