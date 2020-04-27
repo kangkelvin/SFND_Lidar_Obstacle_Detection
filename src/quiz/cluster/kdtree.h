@@ -14,9 +14,6 @@ struct Node {
   std::shared_ptr<Node> left;
   std::shared_ptr<Node> right;
 
-  Node(std::vector<float> arr, int setId)
-      : point(arr), id(setId), left(NULL), right(NULL), numDimension(2) {}
-
   Node(std::vector<float> arr, int setId, int setDim)
       : point(arr), id(setId), left(NULL), right(NULL), numDimension(setDim) {}
 
@@ -52,10 +49,8 @@ struct Node {
     }
 
     // if withinbox, do one more euclidean dist check
-    if (within_bounding_box) {
-      if (calcEucledian(target, point) <= distanceTol) {
-        ids.push_back(id);
-      }
+    if (within_bounding_box && calcEucledian(target, point) <= distanceTol) {
+      ids.push_back(id);
     }
 
     // if current node is on right side of target, check the left child
@@ -86,27 +81,6 @@ struct Node {
       result += (p1[i] - p2[i]) * (p1[i] - p2[i]);
     }
     return std::sqrt(result);
-  }
-
-  void traverseTree() {
-    std::cout << "\nHi I am id: " << id << " with: " << point[0] << " "
-              << point[1] << " ";
-    if (left != NULL && right != NULL) {
-      std::cout << "my left side is: " << left->id
-                << " and right is: " << right->id << std::endl;
-      left->traverseTree();
-      right->traverseTree();
-    } else if (left != NULL && right == NULL) {
-      std::cout << "my left side is: " << left->id << " and right is NULL"
-                << std::endl;
-      left->traverseTree();
-    } else if (left == NULL && right != NULL) {
-      std::cout << "my left side is NULL and right is: " << right->id
-                << std::endl;
-      right->traverseTree();
-    } else {
-      std::cout << "my left side is NULL and right is NULL" << std::endl;
-    }
   }
 };
 
