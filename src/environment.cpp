@@ -110,8 +110,8 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer,
   // downsampling of pcd with voxel grid and crop box
   pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud =
       pointProcessorI->FilterCloud(inputCloud, 0.2,
-                                   Eigen::Vector4f(-20, -6.5, -2, 1.0),
-                                   Eigen::Vector4f(20, 7.5, 4, 1.0));
+                                   Eigen::Vector4f(-20, -6, -2, 1.0),
+                                   Eigen::Vector4f(20, 7, 4, 1.0));
 
   renderPointCloud(viewer, filtered_cloud, "inputCloud");
 
@@ -121,7 +121,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer,
 
   // cluster the obstacles cloud
   auto obstacles_cloud =
-      pointProcessorI->ClusteringWithKdTree(segmented_cloud.first, 0.3, 5, 500);
+      pointProcessorI->ClusteringWithKdTree(segmented_cloud.first, 0.38, 12, 500);
 
   std::vector<Color> colors = {Color(1, 0, 0), Color(0, 1, 1), Color(0, 0, 1)};
   int clusterId = 0;

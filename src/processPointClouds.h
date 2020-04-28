@@ -43,9 +43,18 @@ class ProcessPointClouds {
   SeparateClouds(pcl::PointIndices::Ptr inliers,
                  typename pcl::PointCloud<PointT>::Ptr cloud);
 
+  std::pair<typename pcl::PointCloud<PointT>::Ptr,
+            typename pcl::PointCloud<PointT>::Ptr>
+  SegmentPlaneWithPcl(typename pcl::PointCloud<PointT>::Ptr cloud,
+                      int maxIterations, float distanceThreshold);
+
+  std::vector<typename pcl::PointCloud<PointT>::Ptr> ClusteringWithPcl(
+      typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
+      int minSize, int maxSize);
+
   void calcRansac3DDistwithMultithread(
       typename pcl::PointCloud<PointT>::Ptr cloud, float distanceTol,
-      std::vector<int> &best_inliers_set, std::mutex &mtx);
+      std::unordered_set<int> &best_inliers_set, std::mutex &mtx);
 
   std::pair<typename pcl::PointCloud<PointT>::Ptr,
             typename pcl::PointCloud<PointT>::Ptr>
