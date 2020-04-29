@@ -62,3 +62,18 @@ NOTE: very old version
 [PCL Source Github](https://github.com/PointCloudLibrary/pcl)
 
 [PCL Mac Compilation Docs](http://www.pointclouds.org/documentation/tutorials/compiling_pcl_macosx.php)
+
+#### Literature and Sources
+
+[Plane Segmentation](http://pointclouds.org/documentation/tutorials/planar_segmentation.php#planar-segmentation) line 38-50
+[Plane Segmentation and Extraction](http://pointclouds.org/documentation/tutorials/extract_indices.php#extract-indices) line 38-51, 58-79, 67-70
+
+[Eucledian Clustering](http://pointclouds.org/documentation/tutorials/cluster_extraction.php) line 71-82
+
+[Voxel Grid Downsampling](http://pointclouds.org/documentation/tutorials/voxel_grid.php) line 20-24
+
+[Crop Box Filtering](http://docs.pointclouds.org/trunk/classpcl_1_1_crop_box.html)
+
+[PCA for bounding box](http://codextechnicanum.blogspot.com/2015/04/find-minimum-oriented-bounding-box-of.html)
+
+
